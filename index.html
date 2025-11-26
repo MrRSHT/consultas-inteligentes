@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Consultas Inteligentes</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f7f7f7;
+        margin: 0;
+        padding: 0;
+        color: #222;
+    }
+
+    header {
+        background: #003366;
+        color: white;
+        padding: 15px;
+        text-align: center;
+    }
+
+    .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    input, textarea, button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 16px;
+    }
+
+    button {
+        background: #003366;
+        color: white;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #0055aa;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .url-item {
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .logout {
+        background: darkred;
+        margin-top: 20px;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Consultas Inteligentes</h1>
+    <p>Aplicación web para responder preguntas desde documentos online</p>
+</header>
+
+<div class="container">
+
+    <!-- LOGIN ADMIN -->
+    <div id="loginAdmin" class="card">
+        <h2>Acceso Administrador</h2>
+        <input type="text" id="adminUser" placeholder="Usuario">
+        <input type="password" id="adminPass" placeholder="Contraseña">
+        <button onclick="login()">Ingresar</button>
+    </div>
+
+    <!-- PANEL ADMIN -->
+    <div id="panelAdmin" class="card hidden">
+        <h2>Panel del Administrador</h2>
+        <p>Agregar URLs de documentos que serán usadas para responder consultas.</p>
+
+        <input type="text" id="newURL" placeholder="Ingrese URL del documento">
+        <button onclick="addURL()">Agregar URL</button>
+
+        <h3>Documentos cargados:</h3>
+        <div id="urlList"></div>
+
+        <button class="logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+    <!-- CONSULTAS -->
+    <div id="consultaBox" class="card hidden">
+        <h2>Realizar una consulta</h2>
+        <textarea id="consulta" rows="4" placeholder="Escriba su pregunta aquí..."></textarea>
+        <button onclick="buscar()">Consultar</button>
+
+        <h3>Respuesta:</h3>
+        <div id="respuesta" style="white-space: pre-wrap;"></div>
+    </div>
+
+</div>
+
+<script>
+    let urls = JSON.parse(localStorage.getItem("urls_docs")) || [];
+
+    function login() {
+        const user = document.getElementById("adminUser").value;
+        const pass = document.getElementById("adminPass").value;
+
+        if (user === "RshMaule" && pass === "Maule2025@") {
+            document.getElementById("loginAdmin").classList.add("hidden");
+            document.getElementById("panelAdmin").classList.remove("hidden");
+            renderURLs();
+        } else {
+            alert("Usuario o contraseña incorrectos.");
+        }
+    }
+
+    function logout() {
+        document.getElementById("panelAdmin").classList.add("hidden");
+        document.getElementById("loginAdmin").classList.remove("hidden");
+    }
+
+    function addURL() {
+        const url = document.getElementById("newURL").value;
+        if (url.trim() === "") return alert("Ingrese una URL válida.");
+
+        urls.push(url);
+        localStorage.setItem("urls_docs", JSON.stringify(urls));
+        renderURLs();
+        document.getElementById("newURL").value = "";
+        document.getElementById("consultaBox").classList.remove("hidden");
+    }
+
+    function renderURLs() {
+        const list = document.getElementById("urlList");
+        list.innerHTML = "";
+        urls.forEach((u, i) => {
+            list.innerHTML += `
+                <div class="url-item">
+                    ${u}
+                    <button onclick="delURL(${i})">Eliminar</button>
+                </div>
+            `;
+        });
+        if (urls.length > 0)
+            document.getElementById("consultaBox").classList.remove("hidden");
+    }
+
+    function delURL(i) {
+        urls.splice(i, 1);
+        localStorage.setItem("urls_docs", JSON.stringify(urls));
+        renderURLs();
+    }
+
+    async function buscar() {
+        const pregunta = document.getElementById("consulta").value;
+        if (!pregunta.trim()) return alert("Escriba una consulta.");
+
+        if (urls.length === 0) {
+            document.getElementById("respuesta").innerText =
+                "No hay documentos cargados aún.";
+            return;
+        }
+
+        let resultado = "Analizando documentos...\n\n";
+
+        for (let url of urls) {
+            try {
+                const texto = await fetch(url).then(r => r.text());
+                if (texto.toLowerCase().includes(pregunta.toLowerCase())) {
+                    resultado +=
+                        "🔹 Información encontrada en: " + url + "\n\n" +
+                        extractRelevant(texto, pregunta) + "\n\n";
+                }
+            } catch {
+                resultado += "❌ No se pudo acceder a: " + url + "\n\n";
+            }
+        }
+
+        document.getElementById("respuesta").innerText = resultado;
+    }
+
+    function extractRelevant(texto, pregunta) {
+        const p = pregunta.toLowerCase();
+        const lineas = texto.split("\n");
+        let salida = "";
+
+        lineas.forEach(linea => {
+            if (linea.toLowerCase().includes(p)) {
+                salida += linea.trim() + "\n";
+            }
+        });
+
+        return salida || "No se encontró información exacta, pero el documento fue analizado.";
+    }
+</script>
+
+</body>
+</html>
